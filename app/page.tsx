@@ -21,8 +21,6 @@ export default function Home() {
           .map(([team, info]: [string, any]) => `${team}: ${info.found} found, ${info.saved} saved`)
           .join(" | ");
         setScrapeResults(`✅ ${counts}`);
-
-        // Now fetch today's summary
         const sumRes = await fetch("/api/summary");
         const sumData = await sumRes.json();
         if (sumRes.ok && sumData.summary) {
@@ -57,7 +55,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gray-950 text-white">
-      {/* Header */}
       <div className="bg-gradient-to-r from-gray-900 to-gray-800 border-b border-gray-700">
         <div className="max-w-4xl mx-auto px-6 py-8 text-center">
           <h1 className="text-4xl font-bold mb-2">⚾ Baseball Daily</h1>
@@ -70,22 +67,42 @@ export default function Home() {
               year: "numeric",
               month: "long",
               day: "numeric",
-
-
-cat > app/api/summary/route.ts << 'EOF'
-import { NextResponse } from "next/server";
-import { prisma } from "@/app/lib/prisma";
-
-export async function GET() {
-  const today = new Date().toISOString().split("T")[0];
-
-  const summary = await prisma.dailySummary.findUnique({
-    where: { date: today },
-  });
-
-  if (!summary) {
-    return NextResponse.json({ summary: null }, { status: 404 });
-  }
-
-  return NextResponse.json({ summary: summary.content });
+            })}
+          </p>
+        </div>
+      </div>
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        <div className="flex gap-4 justify-center mb-8">
+          <button
+            onClick={handleScrape}
+            disabled={scraping}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 px-6 py-3 rounded-lg font-semibold transition-colors"
+          >
+            {scraping ? "⏳ Generating..." : "Generate Today's Summary"}
+          </button>
+          <button
+            onClick={handleLoadSummary}
+            disabled={loading}
+            className="bg-gray-700 hover:bg-gray-600 disabled:bg-gray-600 px-6 py-3 rounded-lg font-semibold transition-colors"
+          >
+            {loading ? "⏳ Loading..." : "Load Latest Summary"}
+          </button>
+        </div>
+        {scrapeResults && (
+          <div className="bg-gray-800 rounded-lg p-4 mb-6 text-center text-sm text-gray-300">
+            {scrapeResults}
+          </div>
+        )}
+        {summary && (
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-6">
+            <div className="prose prose-invert max-w-none">
+              <ReactMarkdown>{summary}</ReactMarkdown>
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
+  );
 }
+
+
