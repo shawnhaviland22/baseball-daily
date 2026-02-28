@@ -1,3 +1,5 @@
+
+cat > app/api/scrape/route.ts << 'EOF'
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 
@@ -7,19 +9,18 @@ const TEAMS: Record<string, string> = {
   reds: "Cincinnati Reds",
 };
 
-async function scrapeTeam(teamId: string, teamName: string): Promise<number> {
+async function scrapeTeam(teamId: string, teamName: string): Promise<{ saved: number; found: number; error?: string }> {
   const apiKey = process.env.GNEWS_API_KEY;
-  if (!apiKey) throw new Error("GNEWS_API_KEY not set");
+  if (!apiKey) return { saved: 0, found: 0, error: "GNEWS_API_KEY not set" };
 
-  const query = encodeURIComponent(`${teamName} baseball`);
+  const query = encodeURIComponent(teamName);
   const url = `https://gnews.io/api/v4/search?q=${query}&lang=en&sortby=publishedAt&max=10&apikey=${apiKey}`;
 
-  const res = await fetch(url);
+  const res = await fetch(url, { cache: "no-store" });
   const data = await res.json();
 
-  if (!data.articles) {
-    console.error(`GNews error for ${teamId}:`, data.errors || data.message);
-    return 0;
+  if (!data.articles || data.articles.length === 0) {
+    return { saved: 0, found: 0, error: JSON.stringify(data).slice(0, 500) };
   }
 
   let saved = 0;
@@ -45,12 +46,12 @@ async function scrapeTeam(teamId: string, teamName: string): Promise<number> {
     }
   }
 
-  return saved;
+  return { saved, found: data.articles.length };
 }
 
 export async function GET() {
   try {
-    const results: Record<string, number> = {};
+    const results: Record<string, any> = {};
 
     for (const [teamId, teamName] of Object.entries(TEAMS)) {
       results[teamId] = await scrapeTeam(teamId, teamName);
@@ -58,8 +59,7 @@ export async function GET() {
 
     return NextResponse.json({ success: true, results });
   } catch (error: any) {
-    console.error("Scrape error:", error.message);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
-
+EOF
