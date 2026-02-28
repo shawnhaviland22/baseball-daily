@@ -8,22 +8,23 @@ const TEAMS: Record<string, string> = {
 };
 
 async function scrapeTeam(teamId: string, teamName: string): Promise<number> {
-  const apiKey = process.env.NEWS_API_KEY;
-  if (!apiKey) throw new Error("NEWS_API_KEY not set");
+  const apiKey = process.env.GNEWS_API_KEY;
+  if (!apiKey) throw new Error("GNEWS_API_KEY not set");
 
-  const url = `https://newsapi.org/v2/everything?q="${teamName}" baseball&sortBy=publishedAt&pageSize=15&apiKey=${apiKey}`;
+  const query = encodeURIComponent(`${teamName} baseball`);
+  const url = `https://gnews.io/api/v4/search?q=${query}&lang=en&sortby=publishedAt&max=10&apikey=${apiKey}`;
 
   const res = await fetch(url);
   const data = await res.json();
 
-  if (data.status !== "ok") {
-    console.error(`NewsAPI error for ${teamId}:`, data.message);
+  if (!data.articles) {
+    console.error(`GNews error for ${teamId}:`, data.errors || data.message);
     return 0;
   }
 
   let saved = 0;
 
-  for (const article of data.articles || []) {
+  for (const article of data.articles) {
     try {
       await prisma.rawArticle.upsert({
         where: { url: article.url },
@@ -33,14 +34,13 @@ async function scrapeTeam(teamId: string, teamName: string): Promise<number> {
           title: article.title || "Untitled",
           url: article.url,
           source: article.source?.name || "Unknown",
-          author: article.author || null,
+          author: null,
           publishedAt: article.publishedAt ? new Date(article.publishedAt) : null,
           content: article.content || article.description || null,
         },
       });
       saved++;
     } catch (e: any) {
-      // Skip duplicates or bad data
       console.error(`Skip article: ${e.message}`);
     }
   }
@@ -62,3 +62,4 @@ export async function GET() {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
