@@ -1,5 +1,3 @@
-
-cat > app/api/scrape/route.ts << 'EOF'
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 
@@ -62,4 +60,3 @@ export async function GET() {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
-EOF
