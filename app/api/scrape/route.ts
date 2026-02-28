@@ -28,6 +28,7 @@ function extractItems(xml: string) {
 
 export async function GET() {
   const today = new Date().toISOString().split("T")[0];
+  const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
   const results: Record<string, { found: number; saved: number }> = {};
 
   for (const team of TEAMS) {
@@ -65,7 +66,7 @@ export async function GET() {
     const articles = await prisma.rawArticle.findMany({
       where: {
         team: team.name,
-        createdAt: { gte: new Date(today + "T00:00:00Z") },
+        createdAt: { gte: cutoff },
       },
       orderBy: { createdAt: "desc" },
       take: 10,
@@ -77,12 +78,16 @@ export async function GET() {
       .map((a, i) => `${i + 1}. ${a.title}\n${a.content || ""}`)
       .join("\n\n");
 
+    const sourceList = articles
+      .map((a) => `- [${a.title}](${a.url})`)
+      .join("\n");
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: `You are a baseball beat writer. Write a concise daily summary for the ${team.name}. Use markdown with headers. Include key storylines, player updates, and what to watch.`,
+          content: `You are a baseball beat writer. Write a concise daily summary for the ${team.name}. Use markdown with headers. Include key storylines, player updates, and what to watch. At the end, include a "Sources" section with the following links:\n\n${sourceList}`,
         },
         {
           role: "user",

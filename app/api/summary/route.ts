@@ -2,20 +2,21 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 
 export async function GET() {
-  const today = new Date().toISOString().split("T")[0];
-
   const summaries = await prisma.dailySummary.findMany({
-    where: {
-      date: new Date(today + "T00:00:00Z"),
-    },
-    orderBy: { team: "asc" },
+    orderBy: { date: "desc" },
+    take: 3,
   });
 
   if (summaries.length === 0) {
     return NextResponse.json({ summary: null }, { status: 404 });
   }
 
-  const combined = summaries
+  const latestDate = summaries[0].date;
+  const todaySummaries = summaries.filter(
+    (s) => s.date.getTime() === latestDate.getTime()
+  );
+
+  const combined = todaySummaries
     .map((s) => `# ${s.team}\n\n${s.summary}`)
     .join("\n\n---\n\n");
 
